@@ -45,6 +45,9 @@ const size_t DefaultNodeCacheMaxSize = 500;
 // PluginRootContext is the root context for all streams processed by the
 // thread. It has the same lifetime as the worker thread and acts as target for
 // interactions that outlives individual stream, e.g. timer, async calls.
+// PluginRootContext是root context用于处理这个thread的所有streams
+// 它和worker thread有着同样的生命周期，并且作为target用于和其他在stream之外的
+// 对象进行交互，例如timer, async calls
 class PluginRootContext : public RootContext {
  public:
   PluginRootContext(uint32_t id, std::string_view root_id)
@@ -63,11 +66,13 @@ class PluginRootContext : public RootContext {
   std::string node_id_;
 
   // maps peer ID to the decoded peer flat buffer
+  // 映射peer ID到decoded peer flat buffer
   std::unordered_map<std::string, std::string> cache_;
   int64_t max_peer_cache_size_{DefaultNodeCacheMaxSize};
 };
 
 // Per-stream context.
+// 每个stream的context
 class PluginContext : public Context {
  public:
   explicit PluginContext(uint32_t id, RootContext* root) : Context(id, root) {
@@ -82,6 +87,7 @@ class PluginContext : public Context {
     return dynamic_cast<PluginRootContext*>(this->root());
   };
   inline std::string_view metadataValue() {
+    // 从root context中获取metadata value
     return rootContext()->metadataValue();
   };
   inline std::string_view nodeId() { return rootContext()->nodeId(); }

@@ -26,10 +26,12 @@ namespace Wasm {
 namespace Common {
 
 // Extract node info into a flatbuffer from a struct.
+// 抽取node信息，从一个struct到flatbuffer中
 flatbuffers::DetachedBuffer extractNodeFlatBufferFromStruct(
     const google::protobuf::Struct& metadata);
 
 // Extract struct from a flatbuffer. This is an inverse of the above function.
+// 从一个flatbuffer中抽取出一个struct，这是上面这个函数的逆函数
 void extractStructFromNodeFlatBuffer(const FlatNode& node,
                                      google::protobuf::Struct* metadata);
 

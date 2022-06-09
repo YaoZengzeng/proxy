@@ -24,8 +24,10 @@ namespace Wasm {
 namespace Common {
 
 // Node metadata
+// Node的元数据
 constexpr std::string_view WholeNodeKey = ".";
 
+// upstream和downstream的peer信息和peer_id信息
 constexpr std::string_view kUpstreamMetadataIdKey = "upstream_peer_id";
 constexpr std::string_view kUpstreamMetadataKey = "upstream_peer";
 
@@ -35,6 +37,8 @@ constexpr std::string_view kDownstreamMetadataKey = "downstream_peer";
 // Sentinel value assigned to peer metadata ID key, indicating that the peer
 // metadata is absent. This is different from a missing peer metadata ID key
 // which could indicate that the metadata is not received yet.
+// 哨兵值用于赋值给peer metadata ID key，表明peer metadata缺失，这是少了peer metadata
+// ID key是不同的，那会表明还没有收到metadata
 const std::string kMetadataNotFoundValue =
     "envoy.wasm.metadata_exchange.peer_unknown";
 
@@ -94,6 +98,8 @@ std::string_view ProtocolString(Protocol protocol);
 
 // RequestInfo represents the information collected from filter stream
 // callbacks. This is used to fill metrics and logs.
+// RequestInfo代表了从filter stream callbacks中获取的信息，它用于填充
+// metrics以及logs
 struct RequestInfo {
   // Start timestamp in nanoseconds.
   int64_t start_time;
@@ -221,6 +227,9 @@ flatbuffers::DetachedBuffer extractEmptyNodeFlatBuffer();
 // underlying heap-allocated memory. Note that std::string is inappropriate here
 // because its memory is inlined for short strings and causes a misaligned
 // address access.
+// 抽取本地节点的元数据到一个flatbuffer，Detached buffer拥有底层的heap-allocated
+// memory，注意std::string在这里是不合适的，因为对于short strings，memory是inlined
+// 会导致地址访问的misaligned
 flatbuffers::DetachedBuffer extractLocalNodeFlatBuffer();
 
 // Extract upstream peer metadata from upstream host metadata.
@@ -263,6 +272,7 @@ void populateRequestInfo(bool outbound, bool use_host_header_fallback,
 
 // populateHTTPRequestInfo populates the RequestInfo struct. It needs access to
 // the request context.
+// populateHTTPRequestInfo填充 RequestInfo结构，它需要访问request context
 void populateHTTPRequestInfo(bool outbound, bool use_host_header,
                              RequestInfo* request_info);
 
@@ -290,6 +300,7 @@ bool populateGRPCInfo(RequestInfo* request_info);
 bool getAuditPolicy();
 
 // Returns a string view stored in a flatbuffers string.
+// 返回一个存储在flatbuffers string中的string view
 static inline std::string_view GetFromFbStringView(
     const flatbuffers::String* str) {
   return str ? std::string_view(str->c_str(), str->size()) : std::string_view();

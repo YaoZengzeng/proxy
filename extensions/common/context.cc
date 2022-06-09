@@ -226,6 +226,7 @@ flatbuffers::DetachedBuffer extractLocalNodeFlatBuffer() {
   std::vector<flatbuffers::Offset<KeyVal>> labels, platform_metadata;
   std::vector<flatbuffers::Offset<flatbuffers::String>> app_containers;
   std::string value;
+  // 从node的metadata中抽取出各种信息
   if (getValue({"node", "metadata", "NAME"}, &value)) {
     name = fbb.CreateString(value);
   }

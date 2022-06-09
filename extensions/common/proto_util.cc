@@ -43,6 +43,7 @@ flatbuffers::DetachedBuffer extractNodeFlatBufferFromStruct(
       workload_name, istio_version, mesh_id, cluster_id;
   std::vector<flatbuffers::Offset<KeyVal>> labels, platform_metadata;
   std::vector<flatbuffers::Offset<flatbuffers::String>> app_containers;
+  // 从metadata中抽取出各个字段，构建DetachedBuffer
   for (const auto& it : metadata.fields()) {
     if (it.first == "NAME") {
       name = fbb.CreateString(it.second.string_value());
@@ -112,6 +113,7 @@ flatbuffers::DetachedBuffer extractNodeFlatBufferFromStruct(
 
 void extractStructFromNodeFlatBuffer(const FlatNode& node,
                                      google::protobuf::Struct* metadata) {
+  // 在metadata中设置各个字段
   if (node.name()) {
     (*metadata->mutable_fields())["NAME"].set_string_value(node.name()->str());
   }

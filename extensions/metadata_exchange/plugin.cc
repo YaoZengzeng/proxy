@@ -47,15 +47,19 @@ static RegisterContextFactory register_MetadataExchange(
     CONTEXT_FACTORY(PluginContext), ROOT_FACTORY(PluginRootContext));
 
 void PluginRootContext::updateMetadataValue() {
+  // 抽取出node info
   auto node_info = ::Wasm::Common::extractLocalNodeFlatBuffer();
 
   google::protobuf::Struct metadata;
+  // 抽取出metadata
   ::Wasm::Common::extractStructFromNodeFlatBuffer(
       *flatbuffers::GetRoot<::Wasm::Common::FlatNode>(node_info.data()),
       &metadata);
 
+  // 将元数据序列化为string
   std::string metadata_bytes;
   ::Wasm::Common::serializeToStringDeterministic(metadata, &metadata_bytes);
+  // 编码得到metadata
   metadata_value_ =
       Base64::encode(metadata_bytes.data(), metadata_bytes.size());
 }
@@ -63,7 +67,10 @@ void PluginRootContext::updateMetadataValue() {
 // Metadata exchange has sane defaults and therefore it will be fully
 // functional even with configuration errors.
 // A configuration error thrown here will cause the proxy to crash.
+// Metadata exchange有着理智的默认值并且即使配置错误，也完全可用
+// 一个配置错误的抛出会导致proxy crash
 bool PluginRootContext::onConfigure(size_t size) {
+  // 更新metadata的值
   updateMetadataValue();
   if (!getValue({"node", "id"}, &node_id_)) {
     LOG_DEBUG("cannot get node ID");
@@ -72,11 +79,13 @@ bool PluginRootContext::onConfigure(size_t size) {
                          " value:", metadata_value_, " node:", node_id_));
 
   // Parse configuration JSON string.
+  // 解析配置的JSON string
   if (size > 0 && !configure(size)) {
     LOG_WARN("configuration has errrors, but initialzation can continue.");
   }
 
   // Declare filter state property type.
+  // 声明filter state property的类型
   const std::string function = "declare_property";
   envoy::source::extensions::common::wasm::DeclarePropertyArguments args;
   args.set_type(envoy::source::extensions::common::wasm::WasmType::FlatBuffers);
@@ -120,6 +129,7 @@ bool PluginRootContext::configure(size_t configuration_size) {
   return true;
 }
 
+// 根据从header中获取的信息，更新peer的信息
 bool PluginRootContext::updatePeer(std::string_view key,
                                    std::string_view peer_id,
                                    std::string_view peer_header) {
@@ -127,6 +137,7 @@ bool PluginRootContext::updatePeer(std::string_view key,
   if (max_peer_cache_size_ > 0) {
     auto it = cache_.find(id);
     if (it != cache_.end()) {
+      // 如果没有在缓存中找到，则设置之
       setFilterState(key, it->second);
       return true;
     }
@@ -138,23 +149,30 @@ bool PluginRootContext::updatePeer(std::string_view key,
   auto peer_header_view = Wasm::Common::toAbslStringView(peer_header);
 #endif
 
+  // 对包含metadata的header进行解码
   auto bytes = Base64::decodeWithoutPadding(peer_header_view);
   google::protobuf::Struct metadata;
+  // 从header中解析metadata
   if (!metadata.ParseFromString(bytes)) {
     return false;
   }
 
+  // 从结构体中抽取出flat buffer
   auto fb = ::Wasm::Common::extractNodeFlatBufferFromStruct(metadata);
+  // 将fb转换为string
   std::string_view out(reinterpret_cast<const char*>(fb.data()), fb.size());
+  // 在filter state中进行设置
   setFilterState(key, out);
 
   if (max_peer_cache_size_ > 0) {
     // do not let the cache grow beyond max cache size.
+    // 不要让cache超过max cache size
     if (static_cast<uint32_t>(cache_.size()) > max_peer_cache_size_) {
       auto it = cache_.begin();
       cache_.erase(cache_.begin(), std::next(it, max_peer_cache_size_ / 4));
       LOG_DEBUG(absl::StrCat("cleaned cache, new cache_size:", cache_.size()));
     }
+    // 加入缓存中
     cache_.emplace(std::move(id), out);
   }
 
@@ -163,10 +181,12 @@ bool PluginRootContext::updatePeer(std::string_view key,
 
 FilterHeadersStatus PluginContext::onRequestHeaders(uint32_t, bool) {
   // strip and store downstream peer metadata
+  // 剥离并且存储downstream metadata
   auto downstream_metadata_id = getRequestHeader(ExchangeMetadataHeaderId);
   if (downstream_metadata_id != nullptr &&
       !downstream_metadata_id->view().empty()) {
     removeRequestHeader(ExchangeMetadataHeaderId);
+    // 在FilterState中设置DownstreamMetadaId
     setFilterState(::Wasm::Common::kDownstreamMetadataIdKey,
                    downstream_metadata_id->view());
   } else {
@@ -177,9 +197,11 @@ FilterHeadersStatus PluginContext::onRequestHeaders(uint32_t, bool) {
   if (downstream_metadata_value != nullptr &&
       !downstream_metadata_value->view().empty()) {
     removeRequestHeader(ExchangeMetadataHeader);
+    // 如果是inbound，更新peer，即downstream的信息
     if (!rootContext()->updatePeer(::Wasm::Common::kDownstreamMetadataKey,
                                    downstream_metadata_id->view(),
                                    downstream_metadata_value->view())) {
+      // 不能设置downstream peer node
       LOG_DEBUG("cannot set downstream peer node");
     }
   } else {
@@ -188,15 +210,20 @@ FilterHeadersStatus PluginContext::onRequestHeaders(uint32_t, bool) {
 
   // do not send request internal headers to sidecar app if it is an inbound
   // proxy
+  // 不要发送request internal headers到sidecar app，如果这是一个inbound proxy
   if (direction_ != ::Wasm::Common::TrafficDirection::Inbound) {
+    // 获取metadata
     auto metadata = metadataValue();
     // insert peer metadata struct for upstream
+    // 为upstream插入peer metadata结构
     if (!metadata.empty()) {
+      // 设置metadata
       replaceRequestHeader(ExchangeMetadataHeader, metadata);
     }
 
     auto nodeid = nodeId();
     if (!nodeid.empty()) {
+      // 设置request header的id
       replaceRequestHeader(ExchangeMetadataHeaderId, nodeid);
     }
   }
@@ -206,10 +233,12 @@ FilterHeadersStatus PluginContext::onRequestHeaders(uint32_t, bool) {
 
 FilterHeadersStatus PluginContext::onResponseHeaders(uint32_t, bool) {
   // strip and store upstream peer metadata
+  // 剥离并且存储upstream的peer metadata
   auto upstream_metadata_id = getResponseHeader(ExchangeMetadataHeaderId);
   if (upstream_metadata_id != nullptr &&
       !upstream_metadata_id->view().empty()) {
     removeResponseHeader(ExchangeMetadataHeaderId);
+    // 在FilterState中设置UpstreamMetadaId
     setFilterState(::Wasm::Common::kUpstreamMetadataIdKey,
                    upstream_metadata_id->view());
   }
@@ -227,9 +256,11 @@ FilterHeadersStatus PluginContext::onResponseHeaders(uint32_t, bool) {
 
   // do not send response internal headers to sidecar app if it is an outbound
   // proxy
+  // 不要发送response internal headers到sidecar app，如果这是一个outbound proxy
   if (direction_ != ::Wasm::Common::TrafficDirection::Outbound) {
     auto metadata = metadataValue();
     // insert peer metadata struct for downstream
+    // 插入peer metadata结构用于downstream
     if (!metadata.empty() && metadata_received_) {
       replaceResponseHeader(ExchangeMetadataHeader, metadata);
     }

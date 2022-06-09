@@ -56,6 +56,7 @@ const std::string default_stat_prefix = "istio";
 
 // The order of the fields is important! The metrics indicate the cut-off line
 // using an index.
+// 字段的顺序是非常重要的，metrics表明cut-off line，使用一个index
 #define STD_ISTIO_DIMENSIONS(FIELD_FUNC)     \
   FIELD_FUNC(reporter)                       \
   FIELD_FUNC(source_workload)                \
@@ -267,6 +268,7 @@ class PluginRootContext : public RootContext {
   const std::vector<MetricFactory>& defaultMetrics();
   // Update the dimensions and the expressions data structures with the new
   // configuration.
+  // 更新dimensions以及expressions data结构，用新的配置
   bool initializeDimensions(const ::nlohmann::json& j);
   // Destroy host resources for the allocated expressions.
   void cleanupExpressions();
@@ -325,11 +327,13 @@ class PluginRootContextInbound : public PluginRootContext {
 };
 
 // Per-stream context.
+// 每个stream的context
 class PluginContext : public Context {
  public:
   explicit PluginContext(uint32_t id, RootContext* root) : Context(id, root) {}
 
   // Called for both HTTP and TCP streams, as a final data callback.
+  // HTTP以及TCP streams都会调用这个函数，作为一个final data callback
   void onLog() override {
     rootContext()->deleteFromRequestQueue(id());
     if (request_info_.request_protocol == ::Wasm::Common::Protocol::TCP) {

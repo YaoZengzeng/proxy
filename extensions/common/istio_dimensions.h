@@ -54,7 +54,11 @@ namespace Common {
 // A structure that can hold multiple Istio dimensions(metadata variables).
 // This could be use to key caches based on Istio dimensions for various
 // filters.
+// 
+// 一个可以维护多个Istio dimensions（metadata变量）的结构
+// 它可以用于基于Istio dimensions进行缓存，对于各种filters
 // Note: This is supposed to be used with absl::flat_hash_map only.
+// NOTE: 它应该只和absl::flat_hash_map一起用
 // TODO: Add support for evaluating dynamic Istio dimensions.
 struct IstioDimensions {
 #define DEFINE_FIELD(name) std::string(name);

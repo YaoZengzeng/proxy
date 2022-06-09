@@ -56,6 +56,7 @@ namespace {
 void map_node(IstioDimensions& instance, bool is_source,
               const ::Wasm::Common::FlatNode& node) {
   // Ensure all properties are set (and cleared when necessary).
+  // 确保所有的properties都被设置
   if (is_source) {
     instance[source_workload] = GetFromFbStringView(node.workload_name());
     instance[source_workload_namespace] =
@@ -135,8 +136,10 @@ void map_node(IstioDimensions& instance, bool is_source,
 }
 
 // Called during request processing.
+// 在处理请求的时候被调用
 void map_peer(IstioDimensions& instance, bool outbound,
               const ::Wasm::Common::FlatNode& peer_node) {
+  // inbound为source
   map_node(instance, !outbound, peer_node);
 }
 
@@ -166,11 +169,15 @@ void map_request(IstioDimensions& instance,
 }
 
 // maps peer_node and request to dimensions.
+// 映射peer_node和request到dimensions
 void map(IstioDimensions& instance, bool outbound,
          const ::Wasm::Common::FlatNode& peer_node,
          const ::Wasm::Common::RequestInfo& request) {
+  // 映射peer
   map_peer(instance, outbound, peer_node);
+  // 映射request
   map_request(instance, request);
+  // 映射unknown
   map_unknown_if_empty(instance);
   if (request.request_protocol == Protocol::GRPC) {
     instance[grpc_response_status] = std::to_string(request.grpc_status);
@@ -592,6 +599,8 @@ void PluginRootContext::report(::Wasm::Common::RequestInfo& request_info,
                                bool end_stream) {
   // HTTP peer metadata should be done by the time report is called for a
   // request info. TCP metadata might still be awaiting.
+  // HTTP peer metadata应该准备好，当report被调用时，对于一个request info
+  // TCP metadata可能还是在等待
   // Upstream host should be selected for metadata fallback.
   Wasm::Common::PeerNodeInfo peer_node_info(peer_metadata_id_key_,
                                             peer_metadata_key_);
@@ -607,6 +616,8 @@ void PluginRootContext::report(::Wasm::Common::RequestInfo& request_info,
     // Populate HTTP request info fully only at the end of the stream because
     // onTick context has no access to request/response headers but can read
     // from filter state.
+    // 完全填充HTTP request info，在stream的结束，因为onTick context不能访问
+    // request/response header，但是可以从filter state中读取
     if (end_stream) {
       ::Wasm::Common::populateHTTPRequestInfo(
           outbound_, useHostHeaderFallback(), &request_info);
