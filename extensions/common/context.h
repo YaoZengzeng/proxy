@@ -221,6 +221,7 @@ enum class TrafficDirection : int64_t {
 TrafficDirection getTrafficDirection();
 
 // Convenience routine to create an empty node flatbuffer.
+// Convenience routine用来创建一个空的node flatbuffer
 flatbuffers::DetachedBuffer extractEmptyNodeFlatBuffer();
 
 // Extract local node metadata into a flatbuffer. Detached buffer owns the
@@ -233,7 +234,9 @@ flatbuffers::DetachedBuffer extractEmptyNodeFlatBuffer();
 flatbuffers::DetachedBuffer extractLocalNodeFlatBuffer();
 
 // Extract upstream peer metadata from upstream host metadata.
+// 从upstream host metadata抽取出upstream peer metadata
 // Returns true if the metadata is found in the upstream host metadata.
+// 返回true，如果metadata在upstream的host metadata中找到
 bool extractPeerMetadataFromUpstreamHostMetadata(
     flatbuffers::FlatBufferBuilder& fbb);
 
@@ -289,6 +292,7 @@ void populateExtendedRequestInfo(RequestInfo* request_info);
 void populateTCPRequestInfo(bool outbound, RequestInfo* request_info);
 
 // Detect HTTP and gRPC request protocols.
+// 检测HTTP以及gRPC请求的protocols
 void populateRequestProtocol(RequestInfo* request_info);
 
 // populateGRPCInfo fills gRPC-related information, such as message counts.

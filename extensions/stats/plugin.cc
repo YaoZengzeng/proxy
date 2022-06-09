@@ -58,6 +58,7 @@ void map_node(IstioDimensions& instance, bool is_source,
   // Ensure all properties are set (and cleared when necessary).
   // 确保所有的properties都被设置
   if (is_source) {
+    // 设置instance的各个字段
     instance[source_workload] = GetFromFbStringView(node.workload_name());
     instance[source_workload_namespace] =
         GetFromFbStringView(node.namespace_());
@@ -65,6 +66,7 @@ void map_node(IstioDimensions& instance, bool is_source,
 
     auto source_labels = node.labels();
     if (source_labels) {
+      // 从source labels中找到对应的值
       auto app_iter = source_labels->LookupByKey("app");
       auto app = app_iter ? app_iter->value() : nullptr;
       instance[source_app] = GetFromFbStringView(app);
@@ -87,6 +89,7 @@ void map_node(IstioDimensions& instance, bool is_source,
         instance[source_canonical_revision] = ::Wasm::Common::kLatest.data();
       }
     } else {
+      // 否则将各个字段都设置为空
       instance[source_app] = "";
       instance[source_version] = "";
       instance[source_canonical_service] = "";
@@ -124,6 +127,7 @@ void map_node(IstioDimensions& instance, bool is_source,
             ::Wasm::Common::kLatest.data();
       }
     } else {
+      // 否则将各个字段都置为空
       instance[destination_app] = "";
       instance[destination_version] = "";
       instance[destination_canonical_service] = "";
@@ -153,7 +157,9 @@ void map_unknown_if_empty(IstioDimensions& instance) {
 }
 
 // maps from request context to dimensions.
+// 从request context到dimensions之间的映射
 // local node derived dimensions are already filled in.
+// local node derived dimensinos已经被填充了
 void map_request(IstioDimensions& instance,
                  const ::Wasm::Common::RequestInfo& request) {
   instance[source_principal] = request.source_principal;
@@ -173,9 +179,9 @@ void map_request(IstioDimensions& instance,
 void map(IstioDimensions& instance, bool outbound,
          const ::Wasm::Common::FlatNode& peer_node,
          const ::Wasm::Common::RequestInfo& request) {
-  // 映射peer
+  // 映射peer的信息
   map_peer(instance, outbound, peer_node);
-  // 映射request
+  // 映射request的信息
   map_request(instance, request);
   // 映射unknown
   map_unknown_if_empty(instance);
@@ -189,6 +195,7 @@ void map(IstioDimensions& instance, bool outbound,
 }  // namespace
 
 // Ordered dimension list is used by the metrics API.
+// 供metric API使用的有序的dimension list
 const std::vector<MetricTag>& PluginRootContext::defaultTags() {
   static const std::vector<MetricTag> default_tags = {
 #define DEFINE_METRIC_TAG(name) {#name, MetricTag::TagType::String},
@@ -201,6 +208,7 @@ const std::vector<MetricTag>& PluginRootContext::defaultTags() {
 const std::vector<MetricFactory>& PluginRootContext::defaultMetrics() {
   static const std::vector<MetricFactory> default_metrics = {
       // HTTP, HTTP/2, and GRPC metrics
+      // HTTP, HTTP/2以及GRPC metrics
       MetricFactory{"requests_total", MetricType::Counter,
                     [](::Wasm::Common::RequestInfo&) -> uint64_t { return 1; },
                     static_cast<uint32_t>(Protocol::HTTP) |
@@ -216,6 +224,7 @@ const std::vector<MetricFactory>& PluginRootContext::defaultMetrics() {
                     count_standard_labels, /* recurrent */ false},
       MetricFactory{"request_bytes", MetricType::Histogram,
                     [](::Wasm::Common::RequestInfo& request_info) -> uint64_t {
+                      // 返回request_info中的request_size
                       return request_info.request_size;
                     },
                     static_cast<uint32_t>(Protocol::HTTP) |
@@ -301,6 +310,7 @@ bool PluginRootContext::initializeDimensions(const json& j) {
   Map<std::string, Map<std::string, std::optional<size_t>>> metric_indexes;
 
   // Seed the common metric tags with the default set.
+  // 使用默认集合为公共的metric tags标记
   const std::vector<MetricTag>& default_tags = defaultTags();
   for (const auto& factory : defaultMetrics()) {
     factories[factory.name] = factory;
@@ -312,6 +322,7 @@ bool PluginRootContext::initializeDimensions(const json& j) {
   }
 
   // Process the metric definitions (overriding existing).
+  // 处理metric definations（覆盖已经存在的）
   if (!JsonArrayIterate(j, "definitions", [&](const json& definition) -> bool {
         auto name = JsonGetField<std::string>(definition, "name").value_or("");
         auto value =
@@ -353,6 +364,7 @@ bool PluginRootContext::initializeDimensions(const json& j) {
   }
 
   // Process the dimension overrides.
+  // 处理dimension overrides
   if (!JsonArrayIterate(j, "metrics", [&](const json& metric) -> bool {
         // Sort tag override tags to keep the order of tags deterministic.
         std::vector<std::string> tags;
@@ -433,14 +445,17 @@ bool PluginRootContext::initializeDimensions(const json& j) {
   }
 
   // Local data does not change, so populate it on config load.
+  // Local data不会发生改变，因此在config load的时候填充它
   istio_dimensions_.resize(count_standard_labels + expressions_.size());
   istio_dimensions_[reporter] = outbound_ ? source : destination;
 
   const auto& local_node =
       *flatbuffers::GetRoot<::Wasm::Common::FlatNode>(local_node_info_.data());
+  // 映射local_node到istio_dimensions_
   map_node(istio_dimensions_, outbound_, local_node);
 
   // Instantiate stat factories using the new dimensions
+  // 使用新的dimensions实例化stat factories
   auto field_separator = JsonGetField<std::string>(j, "field_separator")
                              .value_or(default_field_separator);
   auto value_separator = JsonGetField<std::string>(j, "value_separator")
@@ -483,6 +498,8 @@ bool PluginRootContext::initializeDimensions(const json& j) {
 
 // onConfigure == false makes the proxy crash.
 // Only policy plugins should return false.
+// onConfigure为false，会让proxy crash，只有policy plugins
+// 应该返回false
 bool PluginRootContext::onConfigure(size_t size) {
   initialized_ = configure(size);
   return true;
@@ -491,10 +508,12 @@ bool PluginRootContext::onConfigure(size_t size) {
 bool PluginRootContext::configure(size_t configuration_size) {
   auto configuration_data = getBufferBytes(WasmBufferType::PluginConfiguration,
                                            0, configuration_size);
+  // 抽取出本地的node_info的信息
   local_node_info_ = ::Wasm::Common::extractLocalNodeFlatBuffer();
 
   auto result = ::Wasm::Common::JsonParse(configuration_data->view());
   if (!result.has_value()) {
+    // 无法解析plugin configuration JSON
     LOG_WARN(absl::StrCat(
         "cannot parse plugin configuration JSON string: ",
         ::Wasm::Common::toAbslStringView(configuration_data->view())));
@@ -505,6 +524,7 @@ bool PluginRootContext::configure(size_t configuration_size) {
   use_host_header_fallback_ =
       !JsonGetField<bool>(j, "disable_host_header_fallback").value_or(false);
 
+  // 初始化dimensions
   if (!initializeDimensions(j)) {
     return false;
   }
@@ -608,6 +628,8 @@ void PluginRootContext::report(::Wasm::Common::RequestInfo& request_info,
     // For TCP, if peer metadata is not available, peer id is set as not found.
     // Otherwise, we wait for metadata exchange to happen before we report any
     // metric, until the end.
+    // 对于TPC，如果peer metadata不可用，peer id被设置为not found
+    // 否则我们等待metadata exchange发生，在我们report任何metric之前，直到结束
     if (peer_node_info.maybeWaiting() && !end_stream) {
       return;
     }
@@ -630,6 +652,7 @@ void PluginRootContext::report(::Wasm::Common::RequestInfo& request_info,
     }
   }
 
+  // 将各种信息映射到istio_dimensions_
   map(istio_dimensions_, outbound_, peer_node_info.get(), request_info);
 
   for (size_t i = 0; i < expressions_.size(); i++) {
@@ -644,6 +667,7 @@ void PluginRootContext::report(::Wasm::Common::RequestInfo& request_info,
   auto stats_it = metrics_.find(istio_dimensions_);
   if (stats_it != metrics_.end()) {
     for (auto& stat : stats_it->second) {
+      // 遍历stat
       if (end_stream || stat.recurrent_) {
         stat.record(request_info);
       }
@@ -669,6 +693,7 @@ void PluginRootContext::report(::Wasm::Common::RequestInfo& request_info,
                            " ", ", stat=", stat.metric_id_,
                            ", recurrent=", stat.recurrent_));
     if (end_stream || stat.recurrent_) {
+      // 对stat进行record
       stat.record(request_info);
     }
     stats.push_back(stat);

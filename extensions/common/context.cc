@@ -330,6 +330,7 @@ bool extractPeerMetadataFromUpstreamHostMetadata(
   }
   auto labels_offset = fbb.CreateVectorOfSortedTables(&labels);
 
+  // 构建FlatNodeBuilder
   FlatNodeBuilder node(fbb);
   node.add_workload_name(workload_name);
   node.add_namespace_(namespace_);
@@ -345,6 +346,7 @@ bool extractPeerMetadataFromUpstreamHostMetadata(
 PeerNodeInfo::PeerNodeInfo(const std::string_view peer_metadata_id_key,
                            const std::string_view peer_metadata_key) {
   // Attempt to read from filter_state first.
+  // 首先试着从filter_state中读取
   found_ = getValue({peer_metadata_id_key}, &peer_id_);
   if (found_ && peer_id_ != kMetadataNotFoundValue) {
     getValue({peer_metadata_key}, &peer_node_);
@@ -352,10 +354,12 @@ PeerNodeInfo::PeerNodeInfo(const std::string_view peer_metadata_id_key,
   }
 
   // Sentinel value is preserved as ID to implement maybeWaiting.
+  // 保留Sentinel value来实现maybeWaiting
   found_ = false;
 
   // Downstream peer metadata will never be in localhost endpoint. Skip
   // looking for it.
+  // Downstream peer metadata永远不会在localhost endpoint中，跳过寻找它
   if (peer_metadata_id_key == kDownstreamMetadataIdKey) {
     fallback_peer_node_ = extractEmptyNodeFlatBuffer();
     return;
@@ -383,6 +387,7 @@ const ::Wasm::Common::FlatNode& PeerNodeInfo::get() const {
 // Host header is used if use_host_header_fallback==true.
 void populateHTTPRequestInfo(bool outbound, bool use_host_header_fallback,
                              RequestInfo* request_info) {
+  // 获取reqeust和response的一些信息
   populateRequestProtocol(request_info);
   getValue({"request", "url_path"}, &request_info->url_path);
   populateRequestInfo(outbound, use_host_header_fallback, request_info);

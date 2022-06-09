@@ -85,6 +85,7 @@ const std::string default_stat_prefix = "istio";
   FIELD_FUNC(grpc_response_status)
 
 // Aggregate metric values in a shared and reusable bag.
+// 在一个共享的以及可重用的bag中聚合metric value
 using IstioDimensions = std::vector<std::string>;
 
 enum class StandardLabels : int32_t {
@@ -100,14 +101,17 @@ STD_ISTIO_DIMENSIONS(DECLARE_CONSTANT)
 #undef DECLARE_CONSTANT
 
 // All labels.
+// 所有的label
 const size_t count_standard_labels =
     static_cast<size_t>(StandardLabels::xxx_last_metric);
 
 // Labels related to peer information.
+// 和peer information相关的labels
 const size_t count_peer_labels =
     static_cast<size_t>(StandardLabels::destination_cluster) + 1;
 
 // Labels related to TCP streams, including peer information.
+// 和TCP streams相关的labels，包含peer information
 const size_t count_tcp_labels =
     static_cast<size_t>(StandardLabels::connection_security_policy) + 1;
 
@@ -128,6 +132,7 @@ using ValueExtractorFn =
     std::function<uint64_t(::Wasm::Common::RequestInfo& request_info)>;
 
 // SimpleStat record a pre-resolved metric based on the values function.
+// SimpleStat记录一个pre-resolved metric，基于values函数
 class SimpleStat {
  public:
   SimpleStat(uint32_t metric_id, ValueExtractorFn value_fn, MetricType type,
@@ -143,6 +148,7 @@ class SimpleStat {
     if (type_ == MetricType::Counter && val == 0) {
       return;
     }
+    // 对Metric进行记录
     recordMetric(metric_id_, val);
   };
 
@@ -155,6 +161,7 @@ class SimpleStat {
 };
 
 // MetricFactory creates a stat generator given tags.
+// 给定tags，MetricFactory创建一个stat generator
 struct MetricFactory {
   std::string name;
   MetricType type;
@@ -166,6 +173,7 @@ struct MetricFactory {
 };
 
 // StatGen creates a SimpleStat based on resolved metric_id.
+// StatGen创建一个简单的SimpleStat，基于已经被解析的metric_id
 class StatGen {
  public:
   explicit StatGen(const std::string& stat_prefix,
@@ -195,6 +203,8 @@ class StatGen {
   // Resolve metric based on provided dimension values by
   // combining the tags with the indexed dimensions and resolving
   // to a metric ID.
+  // 基于提供的dimension values，通过组合有着indexed dimension的tags
+  // 以及indexed dimensions并且解析到一个metric ID
   SimpleStat resolve(const IstioDimensions& instance) {
     // Using a lower level API to avoid creating an intermediary vector
     size_t s = metric_.prefix.size();
@@ -216,6 +226,7 @@ class StatGen {
       n.append(metric_.field_separator);
     }
     n.append(metric_.name);
+    // 构建metric_id
     auto metric_id = metric_.resolveFullName(n);
     return SimpleStat(metric_id, extractor_, metric_.type, recurrent_);
   };
@@ -241,8 +252,11 @@ class PluginRootContext : public RootContext {
                         MetricTag{"cache", MetricTag::TagType::String}});
     cache_hits_ = cache_count.resolve("stats_filter", "hit");
     cache_misses_ = cache_count.resolve("stats_filter", "miss");
+    // 构建一个空的node_info
     empty_node_info_ = ::Wasm::Common::extractEmptyNodeFlatBuffer();
     if (outbound_) {
+      // 如果是outbound，将peer_metadata_id_key_和peer_metadata_key_
+      // 设置为upstream，否则设置为downstream
       peer_metadata_id_key_ = ::Wasm::Common::kUpstreamMetadataIdKey;
       peer_metadata_key_ = ::Wasm::Common::kUpstreamMetadataKey;
     } else {
@@ -271,6 +285,7 @@ class PluginRootContext : public RootContext {
   // 更新dimensions以及expressions data结构，用新的配置
   bool initializeDimensions(const ::nlohmann::json& j);
   // Destroy host resources for the allocated expressions.
+  // 对于已经分配的expression摧毁host resrouces
   void cleanupExpressions();
   // Allocate an expression if necessary and return its token position.
   std::optional<size_t> addStringExpression(const std::string& input);
@@ -304,12 +319,15 @@ class PluginRootContext : public RootContext {
   uint32_t cache_misses_;
 
   // Resolved metric where value can be recorded.
+  // 解析的metric，里面可以记录value
   // Maps resolved dimensions to a set of related metrics.
+  // 映射resolved dimensions到一系列相关的metrics
   std::unordered_map<IstioDimensions, std::vector<SimpleStat>,
                      HashIstioDimensions>
       metrics_;
   Map<uint32_t, ::Wasm::Common::RequestInfo*> request_queue_;
   // Peer stats to be generated for a dimensioned metrics set.
+  // 对于一个dimensioned metrics set，需要生成的Peer stats
   std::vector<StatGen> stats_;
   bool initialized_ = false;
 };
@@ -343,6 +361,7 @@ class PluginContext : public Context {
   };
 
   // HTTP streams start with headers.
+  // HTTP streams从headers开始
   FilterHeadersStatus onRequestHeaders(uint32_t, bool) override {
     ::Wasm::Common::populateRequestProtocol(&request_info_);
     // Save host value for recurrent reporting.
@@ -357,12 +376,15 @@ class PluginContext : public Context {
   // Metadata should be available (if any) at the time of adding to the queue.
   // Since HTTP metadata exchange uses headers in both directions, this is a
   // safe place to register for both inbound and outbound streams.
+  // Metadata应该在添加到队列的时候可用，因为HTTP metadata exchange在两个方向上
+  // 都使用headers，这是一个安全的地方用于在inbound和outbound streams上注册
   FilterHeadersStatus onResponseHeaders(uint32_t, bool) override {
     rootContext()->addToRequestQueue(id(), &request_info_);
     return FilterHeadersStatus::Continue;
   }
 
   // TCP streams start with new connections.
+  // 从新的
   FilterStatus onNewConnection() override {
     request_info_.request_protocol = ::Wasm::Common::Protocol::TCP;
     request_info_.tcp_connections_opened++;
@@ -371,6 +393,7 @@ class PluginContext : public Context {
   }
 
   // Called on onData call, so counting the data that is received.
+  // 在onData被调用的时候调用，这
   FilterStatus onDownstreamData(size_t size, bool) override {
     request_info_.tcp_received_bytes += size;
     return FilterStatus::Continue;
