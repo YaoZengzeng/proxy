@@ -81,10 +81,12 @@ Network::FilterStatus MetadataExchangeFilter::onData(Buffer::Instance& data,
       FALLTHRU;
     case Done:
       // No work needed if connection state is Done or Invalid.
+      // 当状态为Done或者Invalid时，不需要再做任何事
       return Network::FilterStatus::Continue;
     case ConnProtocolNotRead: {
       // If Alpn protocol is not the expected one, then return.
       // Else find and write node metadata.
+      // 如果Alpn protocol不是预期的，之后返回，否则找到并且写入node metadata
       if (read_callbacks_->connection().nextProtocol() != config_->protocol_) {
         ENVOY_LOG(trace, "Alpn Protocol Not Found. Expected {}, Got {}",
                   config_->protocol_,
@@ -186,6 +188,7 @@ void MetadataExchangeFilter::writeNodeMetadata() {
   Envoy::ProtobufWkt::Struct data;
   Envoy::ProtobufWkt::Struct* metadata =
       (*data.mutable_fields())[ExchangeMetadataHeader].mutable_struct_value();
+  // 获取metadata
   getMetadata(metadata);
   std::string metadata_id = getMetadataId();
   if (!metadata_id.empty()) {
@@ -198,8 +201,10 @@ void MetadataExchangeFilter::writeNodeMetadata() {
     std::string serialized_data;
     serializeToStringDeterministic(data, &serialized_data);
     *metadata_any_value.mutable_value() = serialized_data;
+    // 将metadata写入buffer?
     std::unique_ptr<::Envoy::Buffer::OwnedImpl> buf =
         constructProxyHeaderData(metadata_any_value);
+    // 将WriteData写入Filter Chain
     write_callbacks_->injectWriteDataToFilterChain(*buf, false);
     config_->stats().metadata_added_.inc();
   }
@@ -216,6 +221,7 @@ void MetadataExchangeFilter::tryReadInitialProxyHeader(Buffer::Instance& data) {
   if (data.length() < initial_header_length) {
     config_->stats().initial_header_not_found_.inc();
     // Not enough data to read. Wait for it to come.
+    // 没有足够的数据读取，等待
     ENVOY_LOG(debug,
               "Alpn Protocol matched. Waiting to read more initial header.");
     conn_state_ = NeedMoreDataInitialHeader;
@@ -229,6 +235,7 @@ void MetadataExchangeFilter::tryReadInitialProxyHeader(Buffer::Instance& data) {
     setMetadataNotFoundFilterState();
     ENVOY_LOG(warn,
               "Incorrect istio-peer-exchange ALPN magic. Peer missing TCP "
+              // 对端缺失MetadataExchange filter
               "MetadataExchange filter.");
     conn_state_ = Invalid;
     return;

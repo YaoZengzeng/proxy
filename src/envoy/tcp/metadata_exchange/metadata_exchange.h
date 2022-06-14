@@ -104,6 +104,7 @@ using MetadataExchangeConfigSharedPtr = std::shared_ptr<MetadataExchangeConfig>;
 
 /**
  * A MetadataExchange filter instance. One per connection.
+ * 一个MetadataExchange filter实例，每个连接一个
  */
 class MetadataExchangeFilter : public Network::Filter,
                                protected Logger::Loggable<Logger::Id::filter> {
@@ -132,11 +133,14 @@ class MetadataExchangeFilter : public Network::Filter,
 
  private:
   // Writes node metadata in write pipeline of the filter chain.
+  // 将node metadata写入filter chain的write pipeline
   // Also, sets node metadata in Dynamic Metadata to be available for subsequent
   // filters.
+  // 同时将node metadata写入到Dynamci Metadata，从而能被后续的filters获取到
   void writeNodeMetadata();
 
   // Tries to read inital proxy header in the data bytes.
+  // 试着读取initial proxy header，在data bytes中
   void tryReadInitialProxyHeader(Buffer::Instance& data);
 
   // Tries to read data after initial proxy header. This is currently in the
@@ -154,6 +158,7 @@ class MetadataExchangeFilter : public Network::Filter,
   std::string getMetadataId();
 
   // Helper function to set filterstate when no client mxc found.
+  // Helper函数用于设置filterState，当找不到client mxc
   void setMetadataNotFoundFilterState();
 
   // Config for MetadataExchange filter.
@@ -175,14 +180,22 @@ class MetadataExchangeFilter : public Network::Filter,
       "type.googleapis.com/google.protobuf.Struct";
 
   // Captures the state machine of what is going on in the filter.
+  // 获取这个filter的状态机
   enum {
+    // 还没有读取Connection Protocol
     ConnProtocolNotRead,        // Connection Protocol has not been read yet
+    // 写入node metadata
     WriteMetadata,              // Write node metadata
+    // MetadataExchangeInitialHeader正在被读取
     ReadingInitialHeader,       // MetadataExchangeInitialHeader is being read
+    // Proxy Header正在被读取
     ReadingProxyHeader,         // Proxy Header is being read
+    // 需要读取更多的数据
     NeedMoreDataInitialHeader,  // Need more data to be read
     NeedMoreDataProxyHeader,    // Need more data to be read
+    // 找到了Alpn protocol并且所有的读取都已经完成了
     Done,                       // Alpn Protocol Found and all the read is done
+    // 非法的状态，所有操作都失败了
     Invalid,                    // Invalid state, all operations fail
   } conn_state_;
 };
