@@ -145,16 +145,21 @@ class MetadataExchangeFilter : public Network::Filter,
 
   // Tries to read data after initial proxy header. This is currently in the
   // form of google::protobuf::any which encapsulates google::protobuf::struct.
+  // 试着从initial proxy header之后读取data，它当前的形式是google::protobuf::any
+  // 封装google::protobuf::struct
   void tryReadProxyData(Buffer::Instance& data);
 
   // Helper function to share the metadata with other filters.
+  // Helper函数用于和其他filters共享metadata
   void updatePeer(const Envoy::ProtobufWkt::Struct& struct_value);
   void updatePeerId(absl::string_view key, absl::string_view value);
 
   // Helper function to get Dynamic metadata.
+  // Helper函数用于获取Dynamic metadata
   void getMetadata(google::protobuf::Struct* metadata);
 
   // Helper function to get metadata id.
+  // Helper函数用于获取metadata id
   std::string getMetadataId();
 
   // Helper function to set filterstate when no client mxc found.

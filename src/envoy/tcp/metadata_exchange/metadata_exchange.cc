@@ -32,12 +32,16 @@ namespace Tcp {
 namespace MetadataExchange {
 namespace {
 
+// 构建ProxyHeader
 std::unique_ptr<::Envoy::Buffer::OwnedImpl> constructProxyHeaderData(
     const Envoy::ProtobufWkt::Any& proxy_data) {
+  // 构建initial_header
   MetadataExchangeInitialHeader initial_header;
+  // 对proxy data进行序列化
   std::string proxy_data_str = proxy_data.SerializeAsString();
   // Converting from host to network byte order so that most significant byte is
   // placed first.
+  // 将host转换为network byte order，这样首先放置most significant byte
   initial_header.magic =
       absl::ghtonl(MetadataExchangeInitialHeader::magic_number);
   initial_header.data_size = absl::ghtonl(proxy_data_str.length());
@@ -110,6 +114,7 @@ Network::FilterStatus MetadataExchangeFilter::onData(Buffer::Instance& data,
     }
     case ReadingInitialHeader:
     case NeedMoreDataInitialHeader: {
+      // 试着读取初始的Proxy Header
       tryReadInitialProxyHeader(data);
       if (conn_state_ == NeedMoreDataInitialHeader) {
         return Network::FilterStatus::StopIteration;
@@ -121,6 +126,7 @@ Network::FilterStatus MetadataExchangeFilter::onData(Buffer::Instance& data,
     }
     case ReadingProxyHeader:
     case NeedMoreDataProxyHeader: {
+      // 试着读取Proxy Data
       tryReadProxyData(data);
       if (conn_state_ == NeedMoreDataProxyHeader) {
         return Network::FilterStatus::StopIteration;
@@ -147,6 +153,7 @@ Network::FilterStatus MetadataExchangeFilter::onWrite(Buffer::Instance&, bool) {
     case Invalid:
     case Done:
       // No work needed if connection state is Done or Invalid.
+      // 当连接状态为Done或者为Invalid时，则不需要再处理
       return Network::FilterStatus::Continue;
     case ConnProtocolNotRead: {
       if (read_callbacks_->connection().nextProtocol() != config_->protocol_) {
@@ -158,6 +165,7 @@ Network::FilterStatus MetadataExchangeFilter::onWrite(Buffer::Instance&, bool) {
         config_->stats().alpn_protocol_not_found_.inc();
         return Network::FilterStatus::Continue;
       } else {
+        // application protocol匹配，状态改为WriteMetadata
         conn_state_ = WriteMetadata;
         config_->stats().alpn_protocol_found_.inc();
       }
@@ -169,11 +177,14 @@ Network::FilterStatus MetadataExchangeFilter::onWrite(Buffer::Instance&, bool) {
       writeNodeMetadata();
       FALLTHRU;
     }
+    // 对于onWrite，ReadingInitialHeader, ReadingProxyHeader，NeedMoreDataInitialHeader
+    // 以及NeedMoreDataProxyHeader都不处理
     case ReadingInitialHeader:
     case ReadingProxyHeader:
     case NeedMoreDataInitialHeader:
     case NeedMoreDataProxyHeader:
       // These are to be handled in Reading Pipeline.
+      // 上面这些都是在Reading Pipeline中被处理
       return Network::FilterStatus::Continue;
   }
 
@@ -201,7 +212,8 @@ void MetadataExchangeFilter::writeNodeMetadata() {
     std::string serialized_data;
     serializeToStringDeterministic(data, &serialized_data);
     *metadata_any_value.mutable_value() = serialized_data;
-    // 将metadata写入buffer?
+    // 将metadata写入buffer，调用constructProxyHeaderData构建
+    // 一个header，直接发送到upstream connection中
     std::unique_ptr<::Envoy::Buffer::OwnedImpl> buf =
         constructProxyHeaderData(metadata_any_value);
     // 将WriteData写入Filter Chain
@@ -209,6 +221,8 @@ void MetadataExchangeFilter::writeNodeMetadata() {
     config_->stats().metadata_added_.inc();
   }
 
+  // 将状态改为ReadingInitialHeader，写入本地的metadata之后，就等着对端的
+  // InitialHeader
   conn_state_ = ReadingInitialHeader;
 }
 
@@ -228,7 +242,9 @@ void MetadataExchangeFilter::tryReadInitialProxyHeader(Buffer::Instance& data) {
     return;
   }
   MetadataExchangeInitialHeader initial_header;
+  // 把数据拷贝到initial_header中
   data.copyOut(0, initial_header_length, &initial_header);
+  // initial header里包含了一个magic和一个长度值
   if (absl::gntohl(initial_header.magic) !=
       MetadataExchangeInitialHeader::magic_number) {
     config_->stats().initial_header_not_found_.inc();
@@ -242,6 +258,7 @@ void MetadataExchangeFilter::tryReadInitialProxyHeader(Buffer::Instance& data) {
   }
   proxy_data_length_ = absl::gntohl(initial_header.data_size);
   // Drain the initial header length bytes read.
+  // 抽取出读到的initial header长度的字节
   data.drain(initial_header_length);
   conn_state_ = ReadingProxyHeader;
 }
@@ -253,6 +270,7 @@ void MetadataExchangeFilter::tryReadProxyData(Buffer::Instance& data) {
   }
   if (data.length() < proxy_data_length_) {
     // Not enough data to read. Wait for it to come.
+    // 没有读到足够的数据，等待它的到来
     ENVOY_LOG(debug, "Alpn Protocol matched. Waiting to read more metadata.");
     conn_state_ = NeedMoreDataProxyHeader;
     return;
@@ -272,16 +290,21 @@ void MetadataExchangeFilter::tryReadProxyData(Buffer::Instance& data) {
   data.drain(proxy_data_length_);
 
   // Set Metadata
+  // 设置Metadata
   Envoy::ProtobufWkt::Struct value_struct =
       Envoy::MessageUtil::anyConvert<Envoy::ProtobufWkt::Struct>(proxy_data);
+  // 找到ExchangeMetadataHeader
   auto key_metadata_it = value_struct.fields().find(ExchangeMetadataHeader);
   if (key_metadata_it != value_struct.fields().end()) {
+    // 更新Peer
     updatePeer(key_metadata_it->second.struct_value());
   }
+  // 找到metadata id
   const auto key_metadata_id_it =
       value_struct.fields().find(ExchangeMetadataHeaderId);
   if (key_metadata_id_it != value_struct.fields().end()) {
     Envoy::ProtobufWkt::Value val = key_metadata_id_it->second;
+    // 更新Peer Id
     updatePeerId(toAbslStringView(config_->filter_direction_ ==
                                           FilterDirection::Downstream
                                       ? ::Wasm::Common::kDownstreamMetadataIdKey
@@ -302,6 +325,7 @@ void MetadataExchangeFilter::updatePeer(
   state->setValue(
       absl::string_view(reinterpret_cast<const char*>(fb.data()), fb.size()));
 
+  // 设置metadata key
   auto key = config_->filter_direction_ == FilterDirection::Downstream
                  ? ::Wasm::Common::kDownstreamMetadataKey
                  : ::Wasm::Common::kUpstreamMetadataKey;
@@ -321,6 +345,7 @@ void MetadataExchangeFilter::updatePeerId(absl::string_view key,
       std::make_unique<::Envoy::Extensions::Filters::Common::Expr::CelState>(
           prototype);
   state->setValue(value);
+  // 设置metadata id
   read_callbacks_->connection().streamInfo().filterState()->setData(
       absl::StrCat("wasm.", key), std::move(state),
       StreamInfo::FilterState::StateType::Mutable, prototype.life_span_);
@@ -328,6 +353,7 @@ void MetadataExchangeFilter::updatePeerId(absl::string_view key,
 
 void MetadataExchangeFilter::getMetadata(google::protobuf::Struct* metadata) {
   if (local_info_.node().has_metadata()) {
+    // 从Node Flat Buffer中抽取出metadata
     const auto fb = ::Wasm::Common::extractNodeFlatBufferFromStruct(
         local_info_.node().metadata());
     ::Wasm::Common::extractStructFromNodeFlatBuffer(
