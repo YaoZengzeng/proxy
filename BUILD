@@ -42,6 +42,7 @@ envoy_cc_binary(
     name = "envoy",
     repository = "@envoy",
     deps = ISTIO_EXTENSIONS + [
+        "//source/extensions/filters/listener/kmesh_tlv:config",
         "@envoy//source/exe:envoy_main_entry_lib",
     ],
 )
