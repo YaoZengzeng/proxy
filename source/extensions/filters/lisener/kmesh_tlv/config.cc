@@ -10,9 +10,9 @@ namespace Server {
 namespace Configuration {
 
 /**
- * Config registration for the echo2 filter. @see NamedNetworkFilterConfigFactory.
+ * Config registration for the kmesh tls listener filter. @see NamedListenerFilterConfigFactory.
  */
-class Echo2ConfigFactory : public NamedNetworkFilterConfigFactory {
+class KmeshTlvConfigFactory : public NamedListenerFilterConfigFactory {
 public:
   Network::FilterFactoryCb createFilterFactoryFromProto(const Protobuf::Message&,
                                                         FactoryContext&) override {
@@ -25,7 +25,7 @@ public:
     return ProtobufTypes::MessagePtr{new Envoy::ProtobufWkt::Struct()};
   }
 
-  std::string name() const override { return "envoy.filters.network.echo2"; }
+  std::string name() const override { return "envoy.filters.listener.kmesh_tlv"; }
 
   bool isTerminalFilterByProto(const Protobuf::Message&, ServerFactoryContext&) override {
     return "true";
@@ -33,9 +33,10 @@ public:
 };
 
 /**
- * Static registration for the echo2 filter. @see RegisterFactory.
+ * Static registration for the kmesh tlv listener filter. @see RegisterFactory.
  */
-static Registry::RegisterFactory<Echo2ConfigFactory, NamedNetworkFilterConfigFactory> registered_;
+static Registry::RegisterFactory<KmeshTlvConfigFactory, NamedNetworkFilterConfigFactory>
+    registered_;
 
 } // namespace Configuration
 } // namespace Server

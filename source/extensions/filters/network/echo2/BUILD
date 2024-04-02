@@ -3,7 +3,10 @@ load(
     "envoy_cc_binary",
     "envoy_cc_library",
     "envoy_cc_test",
+    "envoy_package",
 )
+
+envoy_package()
 
 envoy_cc_library(
     name = "echo2_lib",
