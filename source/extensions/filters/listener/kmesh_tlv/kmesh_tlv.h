@@ -10,6 +10,16 @@ namespace Extensions {
 namespace ListenerFilters {
 namespace KmeshTlv {
 
+enum class ReadOrParseState { Done, TryAgainLater, Error, SkipFilter };
+
+constexpr uint8_t TLV_TYPE_LEN = 0x1;
+constexpr uint8_t TLV_LENGTH_LEN = 0x1;
+constexpr uint8_t TLV_TYPE_SERVICE = 0x1;
+constexpr uint8_t TLV_TYPE_ENDING = 0xfe;
+constexpr uint8_t TLV_TYPE_EXTENSION = 0xff;
+
+enum TlvParseState { TypeAndLength = 0, Content = 1 };
+
 /**
  * Implementation of a kmesh tlv listener filter.
  */
@@ -20,13 +30,22 @@ public:
 
   size_t maxReadBytes() const override { return max_kmesh_tlv_len_; }
 
-  Network::FilterStatus onData(Network::ListenerFilterBuffer&) override {
-    return Network::FilterStatus::Continue;
-  };
+  Network::FilterStatus onData(Network::ListenerFilterBuffer&) override;
 
 private:
+  ReadOrParseState parseBuffer(Network::ListenerFilterBuffer& buffer);
   // TODO: set max length properly.
   static const size_t MAX_KMESH_TLV_LEN = 256;
+
+  Network::ListenerFilterCallbacks* cb_{};
+
+  TlvParseState state_{TypeAndLength};
+
+  size_t expected_length_{TLV_TYPE_LEN + TLV_LENGTH_LEN};
+
+  size_t index_{0};
+
+  size_t content_length_{0};
 
   size_t max_kmesh_tlv_len_{MAX_KMESH_TLV_LEN};
 };
