@@ -13,18 +13,22 @@ envoy_cc_library(
     srcs = ["kmesh_tlv.cc"],
     hdrs = ["kmesh_tlv.h"],
     repository = "@envoy",
-    visibility = ["//visibility:public""],
+    visibility = ["//visibility:public"],
     deps = [
         "@envoy//envoy/buffer:buffer_interface",
+        "@envoy//envoy/network:filter_interface",
     ],
 )
 
 envoy_cc_library(
-    name = "config"
-    srcs = ["config.cc"]
+    name = "config",
+    srcs = ["kmesh_tlv_config_factory.cc"],
+    hdrs = ["kmesh_tlv_config_factory.h"],
     repository = "@envoy",
     deps = [
         ":kmesh_tlv_lib",
-        "@envoy//envoy/registry:registry"
-    ]
+        "@envoy//envoy/network:filter_interface",
+        "@envoy//envoy/registry:registry",
+        "@envoy//envoy/server:filter_config_interface",
+    ],
 )

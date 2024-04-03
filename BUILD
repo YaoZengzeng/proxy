@@ -44,6 +44,7 @@ envoy_cc_binary(
         "//source/extensions/filters/http/peer_metadata:filter_lib",
         "//source/extensions/filters/network/metadata_exchange:config_lib",
         "//source/extensions/filters/network/echo2:echo2_config",
+        "//source/extensions/filters/listener/kmesh_tlv:config",
         "@envoy//source/exe:envoy_main_entry_lib",
     ],
 )
