@@ -18,7 +18,7 @@ Network::ListenerFilterFactoryCb KmeshTlvConfigFactory::createListenerFilterFact
 }
 
 ProtobufTypes::MessagePtr KmeshTlvConfigFactory::createEmptyConfigProto() {
-  return ProtobufTypes::MessagePtr{new Envoy::ProtobufWkt::Struct()};
+  return std::make_unique<envoy::listener::kmesh_tlv::config::KmeshTlv>();
 }
 /**
  * Static registration for the kmesh tlv filter. @see RegisterFactory.

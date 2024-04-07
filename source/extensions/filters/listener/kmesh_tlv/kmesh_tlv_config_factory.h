@@ -4,6 +4,7 @@
 
 #include "envoy/registry/registry.h"
 #include "envoy/server/filter_config.h"
+#include "source/extensions/filters/listener/kmesh_tlv/config/kmesh_tlv.pb.h"
 
 namespace Envoy {
 namespace Extensions {

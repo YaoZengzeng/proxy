@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package envoy.listener.kmesh_tlv.config;
+
+option java_package = "io.envoyproxy.envoy.listener.kmesh_tlv.config";
+option java_outer_classname = "KmeshTlvProto";
+option java_multiple_files = true;
+option go_package = "KmeshTlv";
+
+// [#protodoc-title: Kmesh Tlv Filter]
+// Use to decode kmesh tlv protocol.
+// [#extension: envoy.filters.listener.kmesh_tlv]
+
+message KmeshTlv {
+}

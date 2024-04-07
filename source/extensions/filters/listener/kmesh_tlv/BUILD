@@ -29,6 +29,7 @@ envoy_cc_library(
     repository = "@envoy",
     deps = [
         ":kmesh_tlv_lib",
+        "//source/extensions/filters/listener/kmesh_tlv/config:kmesh_tlv_cc_proto",
         "@envoy//envoy/network:filter_interface",
         "@envoy//envoy/registry:registry",
         "@envoy//envoy/server:filter_config_interface",
