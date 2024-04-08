@@ -11,7 +11,8 @@ namespace KmeshTlv {
 Network::FilterStatus KmeshTlvFilter::onAccept(Network::ListenerFilterCallbacks& cb) {
   ENVOY_LOG(trace, "kmesh_tlv: new connection accepted");
   cb_ = &cb;
-  return Network::FilterStatus::Continue;
+  // Waiting for data.
+  return Network::FilterStatus::StopIteration;
 }
 
 Network::FilterStatus KmeshTlvFilter::onData(Network::ListenerFilterBuffer& buffer) {
