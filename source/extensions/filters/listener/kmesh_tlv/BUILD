@@ -17,6 +17,7 @@ envoy_cc_library(
     deps = [
         "@envoy//envoy/buffer:buffer_interface",
         "@envoy//envoy/network:filter_interface",
+        "@envoy//source/common/network:address_lib",
         "@envoy//source/common/network:utility_lib",
         "@envoy//source/common/network:filter_state_dst_address_lib",
     ],

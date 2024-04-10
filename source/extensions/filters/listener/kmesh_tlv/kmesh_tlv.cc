@@ -1,5 +1,6 @@
 #include "kmesh_tlv.h"
 
+#include "source/common/network/address_impl.h"
 #include "source/common/network/utility.h"
 #include "source/common/network/filter_state_dst_address.h"
 
@@ -42,12 +43,15 @@ ReadOrParseState KmeshTlvFilter::parseBuffer(Network::ListenerFilterBuffer& buff
     switch (state_) {
     case TlvParseState::TypeAndLength:
       ENVOY_LOG(info, "-- state is TypeAndLength");
+      ENVOY_LOG(info, "-- index_ is {}, buf[index_] is {}", index_, buf[index_]);
       if (buf[index_] == TLV_TYPE_SERVICE) {
         ENVOY_LOG(info, "--- GET TLV TYPE SERVICE");
-        ENVOY_LOG(info, "--- GET TLV LENGTH IS {}", buf[index_ + 1]);
-        expected_length_ += buf[index_ + 1];
-        content_length_ = buf[index_ + 1];
-        index_ += 2;
+        uint32_t content_len = 0;
+        std::memcpy(&content_len, buf + index_ + 1, TLV_TYPE_LEN);
+        ENVOY_LOG(info, "--- GET TLV LENGTH IS {}", content_len);
+        expected_length_ += content_len;
+        content_length_ = content_len;
+        index_ += TLV_TYPE_LEN + TLV_LENGTH_LEN;
         state_ = TlvParseState::Content;
 
       } else if (buf[index_] == TLV_TYPE_ENDING) {
@@ -60,9 +64,23 @@ ReadOrParseState KmeshTlvFilter::parseBuffer(Network::ListenerFilterBuffer& buff
 
     case TlvParseState::Content:
       ENVOY_LOG(info, "-- state is Content");
-      std::string addr(reinterpret_cast<const char*>(buf + index_), content_length_);
-      ENVOY_LOG(info, "-- addresss is {}", addr);
-      const auto address = Network::Utility::parseInternetAddressAndPort(addr);
+
+      sockaddr_storage addr;
+      int len;
+
+      addr.ss_family = AF_INET;
+      len = sizeof(struct sockaddr_in);
+      ENVOY_LOG(info, "-- len is {}", len);
+      auto in4 = reinterpret_cast<struct sockaddr_in*>(&addr);
+      std::memcpy(&in4->sin_addr, buf + index_ + 1, len);
+      std::memcpy(&in4->sin_port, buf + index_ + 1 + len, 2);
+
+      std::string addrString =
+          (*Envoy::Network::Address::addressFromSockAddr(addr, len, false))->asString();
+      // std::string addr(reinterpret_cast<const char*>(buf + index_), content_length_);
+
+      ENVOY_LOG(info, "-- addresss is {}", addrString);
+      const auto address = Network::Utility::parseInternetAddressAndPort(addrString);
       cb_->filterState().setData(
           "envoy.filters.listener.original_dst.local_ip",
           std::make_shared<Network::AddressObject>(address),
