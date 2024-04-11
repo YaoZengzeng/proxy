@@ -11,6 +11,7 @@ namespace KmeshTlv {
 
 Network::FilterStatus KmeshTlvFilter::onAccept(Network::ListenerFilterCallbacks& cb) {
   ENVOY_LOG(trace, "kmesh_tlv: new connection accepted");
+  ENVOY_LOG(trace, "-- kmesh_tlv: index_ is {}", index_);
   cb_ = &cb;
   // Waiting for data.
   return Network::FilterStatus::StopIteration;
@@ -47,11 +48,12 @@ ReadOrParseState KmeshTlvFilter::parseBuffer(Network::ListenerFilterBuffer& buff
       if (buf[index_] == TLV_TYPE_SERVICE) {
         ENVOY_LOG(info, "--- GET TLV TYPE SERVICE");
         uint32_t content_len = 0;
-        std::memcpy(&content_len, buf + index_ + 1, TLV_TYPE_LEN);
+        std::memcpy(&content_len, buf + index_ + 1, TLV_LENGTH_LEN);
+        content_len = ntohl(content_len);
         ENVOY_LOG(info, "--- GET TLV LENGTH IS {}", content_len);
         expected_length_ += content_len;
         content_length_ = content_len;
-        index_ += TLV_TYPE_LEN + TLV_LENGTH_LEN;
+        index_ += (TLV_TYPE_LEN + TLV_LENGTH_LEN);
         state_ = TlvParseState::Content;
 
       } else if (buf[index_] == TLV_TYPE_ENDING) {
@@ -72,12 +74,13 @@ ReadOrParseState KmeshTlvFilter::parseBuffer(Network::ListenerFilterBuffer& buff
       len = sizeof(struct sockaddr_in);
       ENVOY_LOG(info, "-- len is {}", len);
       auto in4 = reinterpret_cast<struct sockaddr_in*>(&addr);
-      std::memcpy(&in4->sin_addr, buf + index_ + 1, len);
-      std::memcpy(&in4->sin_port, buf + index_ + 1 + len, 2);
+      std::memcpy(&in4->sin_addr, buf + index_, 4);
+      uint16_t port = 0;
+      std::memcpy(&port, buf + index_ + 4, 2);
+      in4->sin_port = port;
 
       std::string addrString =
           (*Envoy::Network::Address::addressFromSockAddr(addr, len, false))->asString();
-      // std::string addr(reinterpret_cast<const char*>(buf + index_), content_length_);
 
       ENVOY_LOG(info, "-- addresss is {}", addrString);
       const auto address = Network::Utility::parseInternetAddressAndPort(addrString);
