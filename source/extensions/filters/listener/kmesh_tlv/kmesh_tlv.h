@@ -28,10 +28,18 @@ namespace KmeshTlv {
 
 enum class ReadOrParseState { Done, TryAgainLater, Error, SkipFilter };
 
+// The length of tlv type field.
 constexpr uint8_t TLV_TYPE_LEN = 0x1;
+// The length of tlv length field.
 constexpr uint8_t TLV_LENGTH_LEN = 0x4;
+// If tlv type field is `0x1`, then this tlv
+// will include service address.
 constexpr uint8_t TLV_TYPE_SERVICE = 0x1;
+// If tlv type field is `0xfe`, then it is the last
+// tlv, after that will be payload data.
 constexpr uint8_t TLV_TYPE_ENDING = 0xfe;
+// If tvl type field is `0xff`, then this tlv will embed
+// many sub tlvs.
 constexpr uint8_t TLV_TYPE_EXTENSION = 0xff;
 // If tlv type is service, the min content length is 6
 // (ip addr is 4 bytes and port is 2 bytes).
