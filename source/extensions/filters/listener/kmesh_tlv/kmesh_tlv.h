@@ -1,3 +1,19 @@
+/*
+ * Copyright 2024 The Kmesh Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at:
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #pragma once
 
 #include "envoy/network/filter.h"
@@ -17,6 +33,9 @@ constexpr uint8_t TLV_LENGTH_LEN = 0x4;
 constexpr uint8_t TLV_TYPE_SERVICE = 0x1;
 constexpr uint8_t TLV_TYPE_ENDING = 0xfe;
 constexpr uint8_t TLV_TYPE_EXTENSION = 0xff;
+// If tlv type is service, the min content length is 6
+// (ip addr is 4 bytes and port is 2 bytes).
+constexpr uint8_t TLV_TYPE_SERVICE_MIN_CONTENT_LEN = 0x6;
 
 enum TlvParseState { TypeAndLength = 0, Content = 1 };
 

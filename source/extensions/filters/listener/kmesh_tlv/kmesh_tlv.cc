@@ -1,3 +1,19 @@
+/*
+ * Copyright 2024 The Kmesh Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at:
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include "kmesh_tlv.h"
 
 #include "source/common/network/address_impl.h"
@@ -53,6 +69,11 @@ ReadOrParseState KmeshTlvFilter::parseBuffer(Network::ListenerFilterBuffer& buff
         std::memcpy(&content_len, buf + index_ + 1, TLV_LENGTH_LEN);
         content_len = ntohl(content_len);
         ENVOY_LOG(trace, "get tlv length {}", content_len);
+
+        if (content_len < TLV_TYPE_SERVICE_MIN_CONTENT_LEN) {
+          ENVOY_LOG(error, "the content length of tlv type service should be at least {}",
+                    TLV_TYPE_SERVICE_MIN_CONTENT_LEN);
+        }
 
         expected_length_ += content_len;
         content_length_ = content_len;
