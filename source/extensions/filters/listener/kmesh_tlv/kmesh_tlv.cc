@@ -111,7 +111,8 @@ ReadOrParseState KmeshTlvFilter::parseBuffer(Network::ListenerFilterBuffer& buff
           (*Envoy::Network::Address::addressFromSockAddr(addr, len, false))->asString();
 
       ENVOY_LOG(trace, "original dst addresss is {}", addrString);
-      const auto address = Network::Utility::parseInternetAddressAndPort(addrString);
+      const auto address =
+          Network::Utility::parseInternetAddressAndPortNoThrow(addrString, /*v6only=*/false);
       cb_->filterState().setData(
           "envoy.filters.listener.original_dst.local_ip",
           std::make_shared<Network::AddressObject>(address),
