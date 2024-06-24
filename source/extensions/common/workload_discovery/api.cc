@@ -32,6 +32,7 @@ namespace Envoy::Extensions::Common::WorkloadDiscovery {
 
 namespace {
 Istio::Common::WorkloadMetadataObject convert(const istio::workload::Workload& workload) {
+  // workload解析出元数据
   auto workload_type = Istio::Common::WorkloadType::Deployment;
   switch (workload.workload_type()) {
   case istio::workload::WorkloadType::CRONJOB:
@@ -46,6 +47,7 @@ Istio::Common::WorkloadMetadataObject convert(const istio::workload::Workload& w
   default:
     break;
   }
+  // 构建metadata对象
   return Istio::Common::WorkloadMetadataObject(
       workload.name(), workload.cluster_id(), workload.namespace_(), workload.workload_name(),
       workload.canonical_name(), workload.canonical_revision(), workload.canonical_name(),
@@ -64,6 +66,7 @@ public:
     tls_.set([](Event::Dispatcher&) { return std::make_shared<ThreadLocalProvider>(); });
     // This is safe because the ADS mux is started in the cluster manager constructor prior to this
     // call.
+    // 这是安全的，因为ADS mux在cluster manager中启动，在这个调用之前构建
     subscription_.start();
   }
 
@@ -74,6 +77,7 @@ public:
         uint32_t value = ipv4->address();
         std::array<uint8_t, 4> output;
         absl::little_endian::Store32(&output, value);
+        // 根据ip获取元数据
         return tls_->get(std::string(output.begin(), output.end()));
       } else if (const auto ipv6 = address->ip()->ipv6(); ipv6) {
         const uint64_t high = absl::Uint128High64(ipv6->address());
@@ -105,14 +109,17 @@ private:
         id_to_address_.erase(id);
       }
       for (const auto& [address, workload] : *added_addresses) {
+        // 设置address到workload
         address_to_workload_.emplace(address, workload);
       }
       for (const auto& [id, address] : *added_ids) {
+        // 设置id到address
         id_to_address_.emplace(id, address);
       }
     }
     size_t total() const { return address_to_workload_.size(); }
     // Returns by-value since the flat map does not provide pointer stability.
+    // 返回by-value，因为flat map不提供pointer stability
     std::optional<Istio::Common::WorkloadMetadataObject> get(const std::string& address) {
       const auto it = address_to_workload_.find(address);
       if (it != address_to_workload_.end()) {
@@ -120,7 +127,9 @@ private:
       }
       return {};
     }
+    // ID到地址的映射
     IdToAddress id_to_address_;
+    // 地址到workload元数据的映射
     AddressToWorkload address_to_workload_;
   };
   class WorkloadSubscription : Config::SubscriptionBase<istio::workload::Workload> {
@@ -129,9 +138,11 @@ private:
         : Config::SubscriptionBase<istio::workload::Workload>(
               parent.factory_context_.messageValidationVisitor(), "uid"),
           parent_(parent) {
+      // 构建对于资源的订阅
       subscription_ = parent.factory_context_.clusterManager()
                           .subscriptionFactory()
                           .subscriptionFromConfigSource(
+                              // 对资源进行订阅
                               parent.config_source_, Grpc::Common::typeUrl(getResourceName()),
                               *parent.scope_, *this, resource_decoder_, {});
     }
@@ -143,6 +154,7 @@ private:
                                 const std::string&) override {
       AddressToWorkloadSharedPtr index = std::make_shared<AddressToWorkload>();
       for (const auto& resource : resources) {
+        // 转换为workload
         const auto& workload =
             dynamic_cast<const istio::workload::Workload&>(resource.get().resource());
         const auto& metadata = convert(workload);
@@ -160,6 +172,7 @@ private:
       AddressToWorkloadSharedPtr added_addresses = std::make_shared<AddressToWorkload>();
       for (const auto& resource : added_resources) {
         const auto& workload =
+            // 解析出Workload
             dynamic_cast<const istio::workload::Workload&>(resource.get().resource());
         const auto& metadata = convert(workload);
         for (const auto& addr : workload.addresses()) {
@@ -178,6 +191,7 @@ private:
     }
     void onConfigUpdateFailed(Config::ConfigUpdateFailureReason, const EnvoyException*) override {
       // Do nothing - feature is automatically disabled.
+      // 什么都不做- feature被自动禁止
       // TODO: Potential issue with the expiration of the metadata.
     }
     WorkloadMetadataProviderImpl& parent_;
@@ -219,6 +233,7 @@ public:
       : factory_context_(factory_context), config_(config) {}
 
   // Server::Configuration::BootstrapExtension
+  // 生成workload extensions
   void onServerInitialized() override {
     provider_ = factory_context_.singletonManager().getTyped<WorkloadMetadataProvider>(
         SINGLETON_MANAGER_REGISTERED_NAME(workload_metadata_provider), [&] {
@@ -254,6 +269,7 @@ REGISTER_FACTORY(WorkloadDiscoveryFactory, Server::Configuration::BootstrapExten
 
 WorkloadMetadataProviderSharedPtr
 GetProvider(Server::Configuration::ServerFactoryContext& context) {
+  // 获取workload provider
   return context.singletonManager().getTyped<WorkloadMetadataProvider>(
       SINGLETON_MANAGER_REGISTERED_NAME(workload_metadata_provider));
 }

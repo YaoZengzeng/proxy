@@ -58,6 +58,7 @@ class XDSMethod : public DiscoveryMethod {
 public:
   XDSMethod(bool downstream, Server::Configuration::ServerFactoryContext& factory_context)
       : downstream_(downstream),
+        // 构建metadata provider
         metadata_provider_(Extensions::Common::WorkloadDiscovery::GetProvider(factory_context)) {}
   absl::optional<PeerInfo> derivePeerInfo(const StreamInfo::StreamInfo&, Http::HeaderMap&,
                                           Context&) const override;
@@ -74,9 +75,11 @@ absl::optional<PeerInfo> XDSMethod::derivePeerInfo(const StreamInfo::StreamInfo&
   }
   Network::Address::InstanceConstSharedPtr peer_address;
   if (downstream_) {
+    // 获取peer address
     peer_address = info.downstreamAddressProvider().remoteAddress();
   } else {
     if (info.upstreamInfo().has_value()) {
+      // 获取upstream host
       auto upstream_host = info.upstreamInfo().value().get().upstreamHost();
       if (upstream_host) {
         const auto address = upstream_host->address();
@@ -87,6 +90,7 @@ absl::optional<PeerInfo> XDSMethod::derivePeerInfo(const StreamInfo::StreamInfo&
         case Network::Address::Type::EnvoyInternal:
           if (upstream_host->metadata()) {
             const auto& filter_metadata = upstream_host->metadata()->filter_metadata();
+            // 从filter metadata获取original dst
             const auto& it = filter_metadata.find("envoy.filters.listener.original_dst");
             if (it != filter_metadata.end()) {
               const auto& destination_it = it->second.fields().find("local");
@@ -103,8 +107,10 @@ absl::optional<PeerInfo> XDSMethod::derivePeerInfo(const StreamInfo::StreamInfo&
       }
     }
   }
+  // 用peer address获取metadata
   const auto metadata_object = metadata_provider_->GetMetadata(peer_address);
   if (metadata_object) {
+    // 将workload metadata转换为flat node
     return Istio::Common::convertWorkloadMetadataToFlatNode(metadata_object.value());
   }
   return {};
@@ -204,12 +210,16 @@ void MXPropagationMethod::inject(const StreamInfo::StreamInfo& info, Http::Heade
 FilterConfig::FilterConfig(const io::istio::http::peer_metadata::Config& config,
                            Server::Configuration::FactoryContext& factory_context)
     : shared_with_upstream_(config.shared_with_upstream()),
+      // 配置downstream discovery
       downstream_discovery_(
           buildDiscoveryMethods(config.downstream_discovery(), true, factory_context)),
+      // 构建upstream discovery
       upstream_discovery_(
           buildDiscoveryMethods(config.upstream_discovery(), false, factory_context)),
+      // 构建downstream propagation
       downstream_propagation_(
           buildPropagationMethods(config.downstream_propagation(), true, factory_context)),
+      // 构建upstream propagation
       upstream_propagation_(
           buildPropagationMethods(config.upstream_propagation(), false, factory_context)) {}
 
@@ -223,11 +233,13 @@ std::vector<DiscoveryMethodPtr> FilterConfig::buildDiscoveryMethods(
     switch (method.method_specifier_case()) {
     case io::istio::http::peer_metadata::Config::DiscoveryMethod::MethodSpecifierCase::
         kWorkloadDiscovery:
+      // method为Discovery
       methods.push_back(
           std::make_unique<XDSMethod>(downstream, factory_context.serverFactoryContext()));
       break;
     case io::istio::http::peer_metadata::Config::DiscoveryMethod::MethodSpecifierCase::
         kIstioHeaders:
+      // method为IstioHeaders
       methods.push_back(
           std::make_unique<MXMethod>(downstream, factory_context.serverFactoryContext()));
       break;
@@ -271,13 +283,16 @@ void FilterConfig::discoverUpstream(StreamInfo::StreamInfo& info, Http::Response
 void FilterConfig::discover(StreamInfo::StreamInfo& info, bool downstream, Http::HeaderMap& headers,
                             Context& ctx) const {
   for (const auto& method : downstream ? downstream_discovery_ : upstream_discovery_) {
+    // 从discovery获取peer info
     const auto result = method->derivePeerInfo(info, headers, ctx);
     if (result) {
+      // 设置filter state
       setFilterState(info, downstream, *result);
       break;
     }
   }
   for (const auto& method : downstream ? downstream_discovery_ : upstream_discovery_) {
+    // 移除header
     method->remove(headers);
   }
 }
@@ -300,20 +315,25 @@ void FilterConfig::setFilterState(StreamInfo::StreamInfo& info, bool downstream,
                                   const std::string& value) const {
   const absl::string_view key = downstream ? WasmDownstreamPeer : WasmUpstreamPeer;
   if (!info.filterState()->hasDataWithName(key)) {
+    // filter state中是否有这个name的数据
     auto node_info = std::make_unique<CelStateHashable>(CelPrototypes::get().NodeInfo);
+    // 在node info中设置value
     node_info->setValue(value);
     info.filterState()->setData(
         key, std::move(node_info), StreamInfo::FilterState::StateType::Mutable,
         StreamInfo::FilterState::LifeSpan::FilterChain, sharedWithUpstream());
   } else {
+    // 有重复的peer metadata，跳过
     ENVOY_LOG(debug, "Duplicate peer metadata, skipping");
   }
   // This is needed because stats filter awaits for the prefix on the wire and checks for the key
   // presence before emitting any telemetry.
+  // 这是需要的，因为stats filter期待prefix，在wire，并且检查key presence，在发射任何的telemetry之前
   const absl::string_view id_key = downstream ? WasmDownstreamPeerID : WasmUpstreamPeerID;
   if (!info.filterState()->hasDataWithName(id_key)) {
     auto node_id = std::make_unique<Filters::Common::Expr::CelState>(CelPrototypes::get().NodeId);
     node_id->setValue("unknown");
+    // 设置data
     info.filterState()->setData(
         id_key, std::move(node_id), StreamInfo::FilterState::StateType::Mutable,
         StreamInfo::FilterState::LifeSpan::FilterChain, sharedWithUpstream());
@@ -323,7 +343,9 @@ void FilterConfig::setFilterState(StreamInfo::StreamInfo& info, bool downstream,
 }
 
 Http::FilterHeadersStatus Filter::decodeHeaders(Http::RequestHeaderMap& headers, bool) {
+  // 发现downstream
   config_->discoverDownstream(decoder_callbacks_->streamInfo(), headers, ctx_);
+  // 注入upstream
   config_->injectUpstream(decoder_callbacks_->streamInfo(), headers, ctx_);
   return Http::FilterHeadersStatus::Continue;
 }
@@ -356,10 +378,14 @@ Http::FilterHeadersStatus Filter::encodeHeaders(Http::ResponseHeaderMap& headers
 absl::StatusOr<Http::FilterFactoryCb> FilterConfigFactory::createFilterFactoryFromProto(
     const Protobuf::Message& config, const std::string&,
     Server::Configuration::FactoryContext& factory_context) {
+  // 获取filter config
   auto filter_config = std::make_shared<FilterConfig>(
       dynamic_cast<const io::istio::http::peer_metadata::Config&>(config), factory_context);
+  // 返回添加filter的callback
   return [filter_config](Http::FilterChainFactoryCallbacks& callbacks) {
+    // 构建filter
     auto filter = std::make_shared<Filter>(filter_config);
+    // 添加stream filter
     callbacks.addStreamFilter(filter);
   };
 }

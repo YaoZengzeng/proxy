@@ -85,6 +85,7 @@ struct WorkloadMetadataObject : public Envoy::StreamInfo::FilterState::Object,
 
   absl::optional<std::string> serializeAsString() const override { return baggage(); }
 
+  // 包含各种元数据
   const std::string instance_name_;
   const std::string cluster_name_;
   const std::string namespace_name_;

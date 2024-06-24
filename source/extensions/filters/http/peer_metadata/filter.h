@@ -39,6 +39,7 @@ struct HeaderValues {
 using Headers = ConstSingleton<HeaderValues>;
 
 // Peer info in the flatbuffers format.
+// 以flatbuffers形式的Peer info
 using PeerInfo = std::string;
 
 struct Context {
@@ -47,6 +48,7 @@ struct Context {
 };
 
 // Base class for the discovery methods. First derivation wins but all methods perform removal.
+// discovery方法的基类
 class DiscoveryMethod {
 public:
   virtual ~DiscoveryMethod() = default;
@@ -75,6 +77,7 @@ private:
 };
 
 // Base class for the propagation methods.
+// propagation方法的基类
 class PropagationMethod {
 public:
   virtual ~PropagationMethod() = default;
@@ -121,7 +124,9 @@ private:
   }
   void discover(StreamInfo::StreamInfo&, bool downstream, Http::HeaderMap&, Context&) const;
   void setFilterState(StreamInfo::StreamInfo&, bool downstream, const std::string& value) const;
+  // 是否和upstream共享
   const bool shared_with_upstream_;
+  // 各种downstream和upstream的discovery方法
   const std::vector<DiscoveryMethodPtr> downstream_discovery_;
   const std::vector<DiscoveryMethodPtr> upstream_discovery_;
   const std::vector<PropagationMethodPtr> downstream_propagation_;

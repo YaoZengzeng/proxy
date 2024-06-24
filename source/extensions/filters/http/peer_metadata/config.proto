@@ -19,27 +19,36 @@ package io.istio.http.peer_metadata;
 
 // Peer metadata provider filter. This filter encapsulates the discovery of the
 // peer telemetry attributes for consumption by the telemetry filters.
+// Peer metadata provider filter，这个filter封装了peer telemetry attributes的discovery，被telemery消费
 message Config {
   // DEPRECATED.
   // This method uses `baggage` header encoding.
+  // 这个方法使用`baggage` header encoding
   message Baggage {
   }
 
   // This method uses the workload metadata xDS. Requires that the bootstrap extension is enabled.
   // For downstream discovery, the remote address is the lookup key in xDS.
+  // 这个方法使用workload metadata xDS，需要使能bootstrap extension，对于downstream discovery，remote address是xDS lookup key
   // For upstream discovery:
+  // 对于upstream discovery：
   //
   // * If the upstream host address is an IP, this IP is used as the lookup key;
+  // * 如果upstream host address是一个IP，则这个IP作为lookup key
   //
   // * If the upstream host address is internal, uses the
   // "filter_metadata.tunnel.destination" dynamic metadata value as the lookup key.
+  // * 如果upstream host addresss是internal，使用"filter_metadata.tunnel.destination" dynamic metadata作为lookup key
   message WorkloadDiscovery {
   }
 
   // This method uses Istio HTTP metadata exchange headers, e.g. `x-envoy-peer-metadata`. Removes these headers if found.
+  // 这个方法使用Istio HTTP metadata exchange headers，例如，`x-envoy-peer-metadata`，移除这些Headers，如果找到的话
   message IstioHeaders {
     // Strip x-envoy-peer-metadata and x-envoy-peer-metadata-id headers on HTTP requests to services outside the mesh.
     // Detects upstream clusters with `istio` and `external` filter metadata fields
+    // 对于网格外的services，移除HTTP请求中的x-envoy-peer-metadata和x-envoy-peer-metadata-id
+    // 用`istio`和`external` filter metadata字段检测upstream clusters
     bool skip_external_clusters = 1;
   }
 

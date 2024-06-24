@@ -235,6 +235,7 @@ std::string convertWorkloadMetadataToFlatNode(const WorkloadMetadataObject& obj)
   return std::string(reinterpret_cast<const char*>(fb.data()), fb.size());
 }
 
+// 将falt node转换为workload metadata
 WorkloadMetadataObject convertFlatNodeToWorkloadMetadata(const Wasm::Common::FlatNode& node) {
   const absl::string_view instance = toAbslStringView(node.name());
   const absl::string_view cluster = toAbslStringView(node.cluster_id());

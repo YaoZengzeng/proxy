@@ -76,8 +76,10 @@ protected:
     EXPECT_EQ(Http::FilterHeadersStatus::Continue, filter_->encodeHeaders(response_headers_, true));
   }
   void checkNoPeer(bool downstream) {
+    // filter state中没有peer id?
     EXPECT_FALSE(stream_info_.filterState()->hasDataWithName(downstream ? WasmDownstreamPeerID
                                                                         : WasmUpstreamPeerID));
+    // filter state中没有peer
     EXPECT_FALSE(stream_info_.filterState()->hasDataWithName(downstream ? WasmDownstreamPeer
                                                                         : WasmUpstreamPeer));
   }
@@ -90,12 +92,15 @@ protected:
     Protobuf::Arena arena;
     auto map = obj->exprValue(&arena, false);
     ASSERT_TRUE(map.IsMap());
+    // 获得ns的值
     auto value =
         (*map.MapOrDie())[google::api::expr::runtime::CelValue::CreateStringView("namespace")];
     ASSERT_TRUE(value.has_value());
+    // ns的值和预期一致
     EXPECT_EQ(expected, value.value().StringOrDie().value());
   }
   void checkShared(bool expected) {
+    // 获取filter state中的objectsSharedWithUpstreamConnection对象内容
     EXPECT_EQ(expected,
               stream_info_.filterState()->objectsSharedWithUpstreamConnection()->size() > 0);
   }

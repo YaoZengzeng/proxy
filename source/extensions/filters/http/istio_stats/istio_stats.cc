@@ -114,6 +114,7 @@ enum class Reporter {
 };
 
 // Detect if peer info read is completed by TCP metadata exchange.
+// 检测是否peer info已经完成，通过TCP metadata exchange
 bool peerInfoRead(Reporter reporter, const StreamInfo::FilterState& filter_state) {
   const auto& filter_state_key =
       reporter == Reporter::ServerSidecar || reporter == Reporter::ServerGateway
@@ -125,10 +126,12 @@ bool peerInfoRead(Reporter reporter, const StreamInfo::FilterState& filter_state
 
 const Wasm::Common::FlatNode* peerInfo(Reporter reporter,
                                        const StreamInfo::FilterState& filter_state) {
+  // 获取filter state key
   const auto& filter_state_key =
       reporter == Reporter::ServerSidecar || reporter == Reporter::ServerGateway
           ? "wasm.downstream_peer"
           : "wasm.upstream_peer";
+  // 从filter state中获取CelState
   const auto* object =
       filter_state.getDataReadOnly<Envoy::Extensions::Filters::Common::Expr::CelState>(
           filter_state_key);
@@ -901,12 +904,14 @@ public:
 
 private:
   // Invoked periodically for streams.
+  // 对于streams阶段性地调用
   void reportHelper(bool end_stream) {
     if (end_stream && report_timer_) {
       report_timer_->disableTimer();
       report_timer_.reset();
     }
     // HTTP handled first.
+    // 首先处理HTTP
     if (decoder_callbacks_) {
       if (!peer_read_) {
         const auto& info = decoder_callbacks_->streamInfo();
@@ -937,6 +942,7 @@ private:
     }
     const auto& info = network_read_callbacks_->connection().streamInfo();
     // TCP MX writes to upstream stream info instead.
+    // TCP Mx写到upstream stream info
     OptRef<const StreamInfo::UpstreamInfo> upstream_info;
     if (config_->reporter() == Reporter::ClientSidecar) {
       upstream_info = info.upstreamInfo();
@@ -990,9 +996,12 @@ private:
 
   // Peer metadata is populated after encode/decodeHeaders by MX HTTP filter,
   // and after initial bytes read/written by MX TCP filter.
+  // Peer metadata被填充，在MX HTTP filter的encode/decodeHeaders之后，并且之后初始化bytes写入/读取
+  // 在MX TCP filter之后
   void populatePeerInfo(const StreamInfo::StreamInfo& info,
                         const StreamInfo::FilterState& filter_state) {
     // Compute peer info with client-side fallbacks.
+    // 计算peer info用client-side的fallbacks
     absl::optional<Istio::Common::WorkloadMetadataObject> peer;
     const auto* object = peerInfo(config_->reporter(), filter_state);
     if (object) {
@@ -1004,6 +1013,7 @@ private:
     }
 
     // Compute destination service with client-side fallbacks.
+    // 用客户端的fallbacks计算destination service
     absl::string_view service_host;
     absl::string_view service_host_name;
     if (!config_->disable_host_header_fallback_) {
@@ -1026,9 +1036,11 @@ private:
             cluster_name == "InboundPassthroughClusterIpv6") {
           service_host_name = cluster_name;
         } else {
+          // 获取metadata
           const auto& filter_metadata = cluster_info.value()->metadata().filter_metadata();
           const auto& it = filter_metadata.find("istio");
           if (it != filter_metadata.end()) {
+            // 找到service
             const auto& services_it = it->second.fields().find("services");
             if (services_it != it->second.fields().end()) {
               const auto& services = services_it->second.list_value();
@@ -1054,8 +1066,10 @@ private:
     absl::string_view peer_san;
     absl::string_view local_san;
     switch (config_->reporter()) {
+    // 根据reporter的不同
     case Reporter::ServerSidecar:
     case Reporter::ServerGateway: {
+      // Server端
       auto peer_principal =
           info.filterState().getDataReadOnly<Router::StringAccessor>("io.istio.peer_principal");
       auto local_principal =
@@ -1080,6 +1094,7 @@ private:
       break;
     }
     case Reporter::ClientSidecar: {
+      // Client端
       const Ssl::ConnectionInfoConstSharedPtr ssl_info =
           info.upstreamInfo() ? info.upstreamInfo()->upstreamSslConnection() : nullptr;
       if (ssl_info && !ssl_info->uriSanPeerCertificate().empty()) {
@@ -1143,6 +1158,7 @@ private:
         tags_.push_back({context_.destination_principal_,
                          !local_san.empty() ? pool_.add(local_san) : context_.unknown_});
         // Endpoint encoding does not have app and version.
+        // Endpoint encoding没有app和version
         tags_.push_back({context_.destination_app_, context_.unknown_});
         tags_.push_back({context_.destination_version_, context_.unknown_});
         auto canonical_name =
